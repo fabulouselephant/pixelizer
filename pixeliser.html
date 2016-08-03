@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pixalizer</title>
+  <link rel="stylesheet" type="text/css" href="pixelizer.css">  
+</head>
+<body>
+  <div id="login_button" class="fb-login-button" data-max-rows="1" data-size="xlarge" data-show-faces="false" data-auto-logout-link="false" scope="public_profile, email" onlogin="checkLoginState();"></div>
+  <div class="photo"><canvas id=image width=300 height=300></canvas><br></div>
+  <div class="test">
+    <div id="pixelate_range" class="pixelate_range"><input id="range" type = range value="10"/></div>
+    <div id="save" onclick="save()">POST ON FACEBOOK</div>
+  </div>
+  <div id="fb-root"></div>
+<script type="text/javascript" src="jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="pixelizer.js"></script>
+<script>
+  function checkLoginState() {
+   FB.getLoginStatus(function(response) {
+    if (response.status === 'connected') {
+      console.log('Logged in.');
+      getPhoto();
+    }
+    else {
+     FB.login();
+      getPhoto();
+   }});
+  }
+
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '1783369971908597',
+      xfbml      : true,
+      version    : 'v2.6'
+    });
+
+    
+    FB.login(function(response) {
+    }, {scope: 'user_photos, user_posts, publish_actions'});
+  };
+
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/uk_UA/sdk.js#xfbml=1&version=v2.6&appId=1783369971908597";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+    
+  function dataURItoBlob(dataURI) {
+    var byteString = atob(dataURI.split(',')[1]);
+    var ab = new ArrayBuffer(byteString.length);
+    var ia = new Uint8Array(ab);
+    for (var i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], {
+        type: 'image/png'
+    });
+  }  
+
+  function getPhoto() {
+    FB.api('/me', function(response){
+      FB.api('/' + response.id + '/picture?width=300&height=300', function(response) {
+        if(response && !response.error) {
+          console.log(response);
+          var canvas = document.getElementById("image");
+          var ctx = canvas.getContext("2d");
+          img = new Image();
+          img.setAttribute('crossOrigin', 'anonymous');
+          img.src = response.data.url;
+          ctx.drawImage(img, 0, 0);
+          pixelate();
+        }
+      })
+    }); 
+  }
+
+  function save() {
+    FB.getLoginStatus(function(response) {
+      postOnFB(response.authResponse.accessToken);
+    });
+  }
+
+  function postOnFB(access_token)
+  {
+    var canvas = document.getElementById('image');
+    var pixelize_image = canvas.toDataURL();
+    
+    var data = new FormData();
+    data.append('source', dataURItoBlob(pixelize_image));
+    data.append("message", "Photo Text");  
+    data.append("access_token", access_token);
+
+    try{
+     $.ajax({
+      url:"https://graph.facebook.com/me/photos?access_token=" + access_token,
+      type:"POST",
+      data:data,
+      processData:false,
+      contentType:false,
+      cache:false,
+      success:function(response){
+          document.location.assign('https://www.facebook.com/photo.php?fbid=' + response.id + '&amp;makeprofile=1'); 
+      },
+      error:function(shr,status,data){
+          console.log("error " + response + " Status " + shr.status);
+      },
+      complete:function(){
+          console.log("Ajax Complete");
+      }
+    }); }catch(e){console.log(e);}
+  }
+</script>
+</body>
+</html>
+
+
+
